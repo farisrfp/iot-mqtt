@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="5" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Charts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+  </head>
+  <body>
+    <canvas id="lineChart" width="400" height="400"></canvas>
+    <script>
+      const date = JSON.parse('{{ labels | tojson}}');
+
+      const ctx=document.getElementById("lineChart").getContext("2d");
+      const linechart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: JSON.parse('{{ labels | tojson}}'),
+          datasets: [{
+              label: "Data points",
+              data: JSON.parse('{{ values | tojson}}'),
+              fill: false,
+              borderColor: "rgb(75, 192, 192)",
+              linetTension: 0.1
+          }]
+        },
+        option: {
+              responsive: false,
+              animation: false
+        }
+      });
+    </script>
+  </body>
+</html>
