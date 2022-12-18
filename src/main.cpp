@@ -1,74 +1,81 @@
 #include <Arduino.h>
-#include "creds.h"
-#define ESP8266
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-uint8_t temprature_sens_read();
-#ifdef __cplusplus
-}
-#endif
-uint8_t temprature_sens_read();
-
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-#include <WiFiClient.h>
-#else
 #include <WiFi.h>
-#include <HTTPClient.h>
-#endif
 #include <PubSubClient.h>
+#include <TinyGPSPlus.h>
 
+// Change the credentials below
+const char *ssid = "SSID WIFI";
+const char *password = "PASSWORD WIFI";
+const char *mqtt_server = "192.168.1.102";
+const char *mqtt_user = "user";
+const char *mqtt_password = "admin";
 
-// Add your MQTT Broker IP address, example:
-const char *mqtt_broker = "broker.emqx.io";
-const char *topic = "esp32/testTemp";
-const char *mqtt_username = "emqx";
-const char *mqtt_password = "public";
-const int mqtt_port = 1883;
-
+// Object for declaring for GPS and MQTT
+TinyGPSPlus gps;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-void setup() {
-  // Set software serial baud to 115200;
+// Timers auxiliar variables
+long now = millis();
+long lastMeasure = 0;
+
+// GPS variables including time
+float latitude = 0;
+float longitude = 0;
+int year, month, day, hour, minute, second;
+
+// Buffer for serial formatting debug
+char buffer[100];
+
+// Function Prototypes
+#include "Function.h"
+
+void setup()
+{
+  // Set Baundrate for Serial/UART communication
   Serial.begin(115200);
+  Serial2.begin(9600);
+  // Setup ESP32 for MQTT
+  pinMode(LED_BUILTIN, OUTPUT);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}
+  
+void loop() {
+  // Reconnects to MQTT broker if connection is lost
+  if (!client.connected())  reconnect();
+  if (!client.loop())       client.connect("ESP8266Client");
 
-  // connecting to a WiFi network
-  WiFi.begin(SSID, PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.println("Connecting to WiFi..");
-  }
-  Serial.println("Connected to the WiFi network");
-
-  //connecting to a mqtt broker
-  client.setServer(mqtt_broker, mqtt_port);
-  while (!client.connected()) {
-    String client_id = "esp32testClient-";
-    client_id += String(WiFi.macAddress());
-    Serial.printf("The client %s connects to the public mqtt broker\n", client_id.c_str());
-    if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
-      Serial.println("Public emqx mqtt broker connected");
-    } else {
-      Serial.print("failed with state ");
-      Serial.print(client.state());
-      delay(2000);
+  // Publishes GPS values
+  while(Serial2.available() > 0) {
+    gps.encode(Serial2.read());
+    // GPS
+    if (gps.location.isUpdated()){
+      latitude = gps.location.lat();
+      longitude = gps.location.lng();
+      sprintf(buffer, "Latitude: %f, Longitude: %f", latitude, longitude);
+      client.publish("gps/latitude", String(latitude).c_str());
+      client.publish("gps/longitude", String(longitude).c_str());
+      Serial.println(buffer);
+    }
+    // Date
+    if (gps.date.isUpdated()){
+      year = gps.date.year();
+      month = gps.date.month();
+      day = gps.date.day();
+      sprintf(buffer, "Year: %d, Month: %d, Day: %d", year, month, day);
+      client.publish("gps/date", String(buffer).c_str());
+      Serial.println(buffer);
+    }
+    // Time
+    if (gps.time.isUpdated()){
+      hour = gps.time.hour();
+      minute = gps.time.minute();
+      second = gps.time.second();
+      sprintf(buffer, "Hour: %d, Minute: %d, Second: %d", hour, minute, second);
+      client.publish("gps/time", String(buffer).c_str());
+      Serial.println(buffer);
     }
   }
-}
-
-void loop() {
-  // float temp = (temprature_sens_read() - 32) / 1.8;
-  float temp = random(20, 40);
-
-  char temps[10];
-  sprintf(temps,"%3.2f", temp);
-  client.publish(topic, temps);
-  client.loop();
-
-  delay(1000);
-}
-
+} 
