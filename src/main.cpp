@@ -4,8 +4,8 @@
 #include <TinyGPSPlus.h>
 
 // Change the credentials below
-const char *ssid = "VI-ROSE";
-const char *password = "VIROSEJUARA1";
+const char *ssid = "SSID WIFI";
+const char *password = "PASSWORD WIFI";
 const char *mqtt_server = "192.168.1.102";
 const char *mqtt_user = "user";
 const char *mqtt_password = "admin";
